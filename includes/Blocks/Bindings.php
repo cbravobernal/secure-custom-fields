@@ -22,6 +22,7 @@ class Bindings {
 		}
 
 		add_action( 'acf/init', array( $this, 'register_binding_sources' ) );
+		add_action( 'acf/init', array( $this, 'register_acf_to_rest' ) );
 	}
 
 	/**
@@ -88,5 +89,85 @@ class Bindings {
 		}
 
 		return apply_filters( 'acf/blocks/binding_value', $value, $source_attrs, $block_instance, $attribute_name );
+	}
+
+	/**
+	 * Register ACF fields to REST API
+	 *
+	 * @return void
+	 */
+	public function register_acf_to_rest(): void {
+		// Check if already registered in this request
+		static $registered     = false;
+		static $allowed_fields = array( 'text', 'number' );
+		if ( $registered ) {
+			return;
+		}
+
+		$fields          = acf_get_field_groups();
+		$registered_meta = array(); // Track which meta we've registered
+
+		foreach ( $fields as $field_group ) {
+			// Skip inactive field groups
+			if ( ! empty( $field_group['active'] ) && ! $field_group['active'] ) {
+				continue;
+			}
+
+			$post_types = $this->get_post_types_from_location( $field_group );
+			$fields     = acf_get_fields( $field_group );
+			foreach ( $fields as $field ) {
+				if ( isset( $field['type'] ) && in_array( $field['type'], $allowed_fields, true ) && isset( $field['allow_in_bindings'] ) && $field['allow_in_bindings'] ) {
+					$meta_key = $field['name'];
+
+					foreach ( $post_types as $post_type ) {
+						// Skip if we've already registered this meta for this post type
+						if ( isset( $registered_meta[ $post_type ][ $meta_key ] ) ) {
+							continue;
+						}
+
+						register_post_meta(
+							$post_type,
+							$meta_key,
+							array(
+								'show_in_rest'  => true,
+								'single'        => true,
+								'type'          => 'string',
+								'auth_callback' => function () {
+									return current_user_can( 'edit_posts' );
+								},
+							)
+						);
+
+						$registered_meta[ $post_type ][ $meta_key ] = true;
+					}
+				}
+			}
+		}
+
+		$registered = true;
+	}
+
+	/**
+	 * Get post types from field group location rules
+	 *
+	 * @param array $field_group ACF field group array.
+	 * @return array Array of post types
+	 */
+	private function get_post_types_from_location( array $field_group ): array {
+		$post_types = array();
+
+		if ( ! isset( $field_group['location'] ) || ! is_array( $field_group['location'] ) ) {
+			return array( 'post' ); // Default to 'post' if no location rules
+		}
+
+		foreach ( $field_group['location'] as $location_group ) {
+			foreach ( $location_group as $location_rule ) {
+				if ( 'post_type' === $location_rule['param'] && '==' === $location_rule['operator'] ) {
+					$post_types[] = $location_rule['value'];
+				}
+			}
+		}
+
+		return array_unique( $post_types );
 	}
 }

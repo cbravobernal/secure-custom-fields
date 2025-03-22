@@ -129,7 +129,6 @@ if ( ! class_exists( 'ACF_Assets' ) ) :
 			wp_register_style( 'acf-global', acf_get_url( 'assets/build/css/acf-global' . $suffix . '.css' ), array( 'dashicons' ), $version );
 			wp_register_style( 'acf-input', acf_get_url( 'assets/build/css/acf-input' . $suffix . '.css' ), array( 'acf-global' ), $version );
 			wp_register_style( 'acf-field-group', acf_get_url( 'assets/build/css/acf-field-group' . $suffix . '.css' ), array( 'acf-input' ), $version );
-
 			/**
 			 * Fires after core scripts and styles have been registered.
 			 *
@@ -187,7 +186,16 @@ if ( ! class_exists( 'ACF_Assets' ) ) :
 			$this->add_action( 'admin_enqueue_scripts', 'enqueue_scripts', 20 );
 			$this->add_action( 'admin_print_scripts', 'print_scripts', 20 );
 			$this->add_action( 'admin_print_footer_scripts', 'print_footer_scripts', 20 );
+			add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_scf_admin_scripts' ) );
 		}
+
+		public function enqueue_scf_admin_scripts() {
+			$suffix  = defined( 'SCF_DEVELOPMENT_MODE' ) && SCF_DEVELOPMENT_MODE ? '' : '.min';
+			$version = acf_get_setting( 'version' );
+			wp_register_script( 'scf-bindings', acf_get_url( 'assets/build/js/scf-bindings' . $suffix . '.js' ), array( 'react', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-core-data', 'wp-data', 'wp-dom-ready', 'wp-editor', 'wp-element', 'wp-i18n', 'wp-plugins', 'wp-primitives' ), $version, true );
+			wp_enqueue_script( 'scf-bindings' );
+		}
+
 
 		/**
 		 * Extends the add_action() function with two additional features:
@@ -392,6 +400,7 @@ if ( ! class_exists( 'ACF_Assets' ) ) :
 				 * @since   ACF 5.6.9
 				 */
 				do_action( 'acf/input/admin_enqueue_scripts' );
+
 			}
 
 			/**

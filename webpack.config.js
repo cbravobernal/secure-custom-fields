@@ -100,13 +100,32 @@ const commonConfig = {
   },
 };
 
-// Unminified build
-const unminifiedConfig = {
-  ...commonConfig,
-  entry: {
-    ...jsEntries,
-    ...cssEntries,
+const cssCommonConfig = {
+  output: {
+    path: path.resolve(__dirname, "assets/build/"),
   },
+  module: {
+    rules: [
+      {
+        test: /\.scss$/,
+        use: [
+          MiniCssExtractPlugin.loader,
+          {
+            loader: "css-loader",
+            options: {
+              url: false,
+            },
+          },
+          "sass-loader",
+        ],
+      },
+    ],
+  },
+};
+
+const unminifiedJSConfig = {
+  ...commonConfig,
+  entry: jsEntries,
   mode: "development",
   output: {
     ...commonConfig.output,
@@ -117,9 +136,6 @@ const unminifiedConfig = {
     minimize: false,
   },
   plugins: [
-    new MiniCssExtractPlugin({
-      filename: "[name].css",
-    }),
     new CircularDependencyPlugin({
       exclude: /node_modules/,
       failOnError: true,
@@ -128,13 +144,38 @@ const unminifiedConfig = {
   ],
 };
 
-// Minified build
-const minifiedConfig = {
+// Unminified build for CSS
+const unminifiedCSSConfig = {
+  ...cssCommonConfig,
+  entry: cssEntries,
+  mode: "development",
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: "[name].css",
+    }),
+    {
+      apply(compiler) {
+        compiler.hooks.shouldEmit.tap(
+          "Remove styles from output",
+          (compilation) => {
+            // Remove all JS files from the output
+            Object.keys(compilation.assets).forEach((asset) => {
+              if (asset.endsWith(".js")) {
+                delete compilation.assets[asset];
+              }
+            });
+            return true;
+          }
+        );
+      },
+    },
+  ],
+};
+
+// Minified build for JavaScript
+const minifiedJSConfig = {
   ...commonConfig,
-  entry: {
-    ...jsEntries,
-    ...cssEntries,
-  },
+  entry: jsEntries,
   mode: "production",
   output: {
     ...commonConfig.output,
@@ -151,16 +192,12 @@ const minifiedConfig = {
         },
         extractComments: false,
       }),
-      new CssMinimizerPlugin(),
     ],
   },
   plugins: [
     new DependencyExtractionWebpackPlugin({
       injectPolyfill: true,
       useCombinedAssetFile: true,
-    }),
-    new MiniCssExtractPlugin({
-      filename: "[name].min.css",
     }),
     new CircularDependencyPlugin({
       exclude: /node_modules/,
@@ -170,5 +207,41 @@ const minifiedConfig = {
   ],
 };
 
+// Minified build for CSS
+const minifiedCSSConfig = {
+  ...cssCommonConfig,
+  entry: cssEntries,
+  mode: "production",
+  optimization: {
+    minimizer: [new CssMinimizerPlugin()],
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: "[name].min.css",
+    }),
+    {
+      apply(compiler) {
+        compiler.hooks.shouldEmit.tap(
+          "Remove styles from output",
+          (compilation) => {
+            // Remove all JS files from the output
+            Object.keys(compilation.assets).forEach((asset) => {
+              if (asset.endsWith(".js")) {
+                delete compilation.assets[asset];
+              }
+            });
+            return true;
+          }
+        );
+      },
+    },
+  ],
+};
+
 // Export both configurations
-module.exports = [unminifiedConfig, minifiedConfig];
+module.exports = [
+  unminifiedJSConfig,
+  unminifiedCSSConfig,
+  minifiedJSConfig,
+  minifiedCSSConfig,
+];

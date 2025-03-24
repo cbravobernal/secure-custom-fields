@@ -2,7 +2,6 @@ const path = require("path");
 const TerserPlugin = require("terser-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
-const FixStyleOnlyEntriesPlugin = require("webpack-fix-style-only-entries");
 const DependencyExtractionWebpackPlugin = require("@wordpress/dependency-extraction-webpack-plugin");
 const CircularDependencyPlugin = require("circular-dependency-plugin");
 
@@ -47,21 +46,6 @@ const commonConfig = {
         __dirname,
         "node_modules/@wordpress/dom-ready"
       ),
-    },
-    fallback: {
-      path: require.resolve("path-browserify"),
-      fs: false,
-      net: false,
-      tls: false,
-      crypto: require.resolve("crypto-browserify"),
-      stream: require.resolve("stream-browserify"),
-      url: require.resolve("url/"),
-      zlib: require.resolve("browserify-zlib"),
-      http: require.resolve("stream-http"),
-      https: require.resolve("https-browserify"),
-      assert: require.resolve("assert/"),
-      os: require.resolve("os-browserify/browser"),
-      buffer: require.resolve("buffer/"),
     },
   },
   module: {
